@@ -16,7 +16,8 @@ fn main() -> () {
 
     let exit_code = match command.as_str() {
         "add" => AddCommand::new(args).handle(),
-        "done" => CompleteCommand::new(args).handle(),
+        "complete" => CompleteCommand::new(args).handle(),
+        "edit" => EditCommand::new(args).handle(),
         "list" => ListCommand::new().handle(),
         _ => {
             println!("Invalid command");

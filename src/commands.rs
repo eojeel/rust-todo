@@ -1,7 +1,6 @@
 use std::fs;
 use std::fs::{File, OpenOptions};
-use std::io::{Write, BufReader, BufRead, Result};
-
+use std::io::{Write, BufReader, BufRead, Result, stdout, stdin};
 
 // Command interface
 pub trait Command {
@@ -26,26 +25,26 @@ impl AddCommand {
 
 impl Command for AddCommand {
     fn handle(&self) -> i32 {
-        let description = self.args.get(2);
+        let description = self.args[2..].join(" ");
 
-        if let Some(desc) = description {
-            let mut file = match OpenOptions::new().write(true).append(true).open("Storage.txt") {
-                Ok(file) => file,
-                Err(_) => return 0,
-            };
-
-            if writeln!(file, "{}", desc).is_err() {
-                return 0;
-            }
-
-            println!("Todo Added!");
-
-            1
-
-        } else {
+        if description.is_empty() {
             println!("Please provide a description");
-            0
+            return 0;
         }
+
+        let mut file = match OpenOptions::new().write(true).append(true).open("Storage.txt") {
+            Ok(file) => file,
+            Err(_) => return 0,
+        };
+
+        if writeln!(file, "{}", description).is_err() {
+            return 0;
+        }
+
+        println!("Todo Added!");
+
+        1
+
     }
 }
 
@@ -133,6 +132,79 @@ impl Command for CompleteCommand {
         }
     }
 }
+
+
+pub struct EditCommand {
+    args: Vec<String>
+}
+
+impl EditCommand {
+    pub fn new(args: Vec<String>) -> Self {
+        EditCommand {
+            args
+        }
+    }
+}
+
+impl Command for EditCommand {
+    fn handle(&self) -> i32 {
+        let line_option = self.args.get(2);
+        let file_path = "Storage.txt";
+
+        let file = File::open(file_path).expect("Unable to open file");
+        let reader = BufReader::new(file);
+        let mut lines: Vec<String> = reader.lines().filter_map(Result::ok).collect();
+
+        if let Some(line_str) = line_option {
+            if let Ok(line_usize) = line_str.parse::<usize>() {
+                if line_usize >= lines.len() {
+                    println!("No todos to complete");
+                    return 0;
+                }
+
+                let mut input = String::new();
+                print!("Updating Todo: {}", lines[line_usize]);
+                println!();
+                stdout().flush().unwrap();
+                stdin().read_line(&mut input).unwrap();
+                let new_line = input.trim().to_string();
+
+                if new_line.is_empty() {
+                    println!("Please provide a description");
+                    return 0;
+                }
+
+                println!("You entered: {}", new_line);
+                lines[line_usize] = new_line;
+
+
+                let mut file = OpenOptions::new()
+                .write(true)
+                .truncate(true)
+                .open(file_path)
+                .unwrap();
+
+              // Write all lines back to the file
+              for line in lines.iter() {
+                    if writeln!(file, "{}", line).is_err() {
+                        println!("Failed to write to file");
+                        return 0;
+                    }
+                }
+
+                println!("Todo Updated!");
+                1
+            } else {
+                println!("Invalid index format");
+                0
+            }
+        } else {
+            println!("Index argument missing");
+            1
+        }
+    }
+}
+
 
 
 // Tests
